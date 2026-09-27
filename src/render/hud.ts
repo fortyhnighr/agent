@@ -84,12 +84,19 @@ export function drawHud(
   drawHealth(ctx, f0, 40, 34, w - 80, 1, 'P1');
   drawTimer(ctx, state, w / 2, 44);
 
-  // Charge / Attunement readouts sit under each health bar.
-  if (f0.charId === 'mk2') drawChargeBlock(ctx, state, f0, 40, 74, false);
-  if (f1.charId === 'mk2') drawChargeBlock(ctx, state, f1, w - 40, 74, true);
-
-  drawStatusStrip(ctx, state.fighters);
-  drawMoveHint(ctx, state);
+  /*
+   * Each side gets a column that stacks downwards: health bar, then the
+   * machine's Charge/Attunement block, then its statuses. Nothing overlaps
+   * anything else, in either form, at any Charge value.
+   */
+  const colTop = 66;
+  let leftY = colTop;
+  let rightY = colTop;
+  if (f0.charId === 'mk2') leftY += drawChargeBlock(ctx, state, f0, 40, leftY, false) + 8;
+  if (f1.charId === 'mk2') rightY += drawChargeBlock(ctx, state, f1, w - 40, rightY, true) + 8;
+  leftY += drawStatusStrip(ctx, f0, 40, leftY, false);
+  rightY += drawStatusStrip(ctx, f1, w - 40, rightY, true);
+  drawMoveHint(ctx, state, Math.max(leftY, 150));
   drawBanners(ctx, state, fx, w, h);
   if (state.silence > 0) drawSilence(ctx, state.silence, w, h);
   if (state.text.life > 0) drawTextCue(ctx, state);
@@ -133,14 +140,16 @@ function drawHealth(ctx: CanvasRenderingContext2D, f: Fighter, x: number, y: num
  * Divine Charge 0-20 plus Attunement 0-3. In Form 2 the big number is a
  * deterministic corrupted readout and the true value is always shown beside it.
  */
-function drawChargeBlock(ctx: CanvasRenderingContext2D, state: MatchState, f: Fighter, x: number, y: number, right: boolean): void {
+/** Returns the height the block used, so the caller can stack below it. */
+function drawChargeBlock(ctx: CanvasRenderingContext2D, state: MatchState, f: Fighter, x: number, y: number, right: boolean): number {
   const form = f.char[CK.form] ?? 1;
   const charge = f.char[CK.charge] ?? 0;
   const att = f.char[CK.attunement] ?? 0;
   const cum = f.char[CK.cumSpend] ?? 0;
   const w = 300;
   const bx = right ? x - w : x;
-  panel(ctx, bx, y, w, form === 2 ? 104 : 86, form === 2 ? 0.8 : 0.6);
+  const h = form === 2 ? 108 : 92;
+  panel(ctx, bx, y, w, h, form === 2 ? 0.8 : 0.6);
   const align: CanvasTextAlign = right ? 'right' : 'left';
   const tx = right ? bx + w - 12 : bx + 12;
 
@@ -217,38 +226,36 @@ function drawChargeBlock(ctx: CanvasRenderingContext2D, state: MatchState, f: Fi
   }
   text(ctx, `ATTUNEMENT ${att}`, right ? bx + w - 12 - ATTUNE.max * 16 - 8 : bx + 12 + ATTUNE.max * 16 + 8, ay + 5, font(12, 700), rgba(GOLD, 0.8), right ? 'right' : 'left');
   void cum;
+  return h;
 }
 
-/** Statuses, both sides, with real stack counts. */
-function drawStatusStrip(ctx: CanvasRenderingContext2D, fighters: [Fighter, Fighter]): void {
-  const w = 236;
+/**
+ * Status chips with their real stack counts. Returns the height used so the
+ * column can keep stacking; a fighter with no statuses costs nothing.
+ */
+function drawStatusStrip(ctx: CanvasRenderingContext2D, f: Fighter, x: number, y: number, right: boolean): number {
+  const active = MK2_STATUSES.filter(({ key }) => (f.statuses[key]?.stacks ?? 0) > 0);
+  if (active.length === 0) return 0;
+  const w = 300;
+  const bx = right ? x - w : x;
   const h = 24;
-  const y = 112;
-  for (let side = 0; side < 2; side++) {
-    const f = fighters[side as 0 | 1];
-    const x = side === 0 ? 40 : 1280 - 40 - w;
-    ctx.fillStyle = rgba(INK, 0.5);
-    ctx.fillRect(x, y, w, h);
-    ctx.strokeStyle = rgba(GOLD, 0.2);
-    ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
-    let cx = side === 0 ? x + 8 : x + w - 8;
-    for (const { key, label } of MK2_STATUSES) {
-      const st = f.statuses[key];
-      const n = st?.stacks ?? 0;
-      if (n <= 0) continue;
-      const color = STATUS_COLOR[key] ?? GOLD;
-      const chipW = 14 + label.length * 6.2;
-      const bx = side === 0 ? cx : cx - chipW;
-      ctx.fillStyle = rgba(color, 0.2);
-      ctx.fillRect(bx, y + 4, chipW, h - 8);
-      ctx.strokeStyle = rgba(color, 0.85);
-      ctx.lineWidth = 1;
-      ctx.strokeRect(bx + 0.5, y + 4.5, chipW - 1, h - 9);
-      text(ctx, `${label} ${n}`, bx + chipW / 2, y + 16, font(11, 700), color, 'center');
-      cx += side === 0 ? chipW + 5 : -(chipW + 5);
-      if (cx < x || cx > x + w) break;
-    }
+  panel(ctx, bx, y, w, h, 0.45);
+  let cx = right ? bx + w - 8 : bx + 8;
+  for (const { key, label } of active) {
+    const n = f.statuses[key]?.stacks ?? 0;
+    const color = STATUS_COLOR[key] ?? GOLD;
+    const chipW = 16 + label.length * 6.4;
+    const x0 = right ? cx - chipW : cx;
+    if (x0 < bx + 4 || x0 + chipW > bx + w - 4) break;
+    ctx.fillStyle = rgba(color, 0.18);
+    ctx.fillRect(x0, y + 4, chipW, h - 8);
+    ctx.strokeStyle = rgba(color, 0.85);
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x0 + 0.5, y + 4.5, chipW - 1, h - 9);
+    text(ctx, `${label} ${n}`, x0 + chipW / 2, y + 16, font(11, 700), color, 'center');
+    cx += right ? -(chipW + 5) : chipW + 5;
   }
+  return h + 8;
 }
 
 function drawTimer(ctx: CanvasRenderingContext2D, state: MatchState, cx: number, y: number): void {
@@ -261,7 +268,7 @@ function drawTimer(ctx: CanvasRenderingContext2D, state: MatchState, cx: number,
   text(ctx, `ROUND ${state.round}`, cx, y + 34, font(11, 700), rgba(GOLD, 0.7), 'center');
 }
 
-function drawMoveHint(ctx: CanvasRenderingContext2D, state: MatchState): void {
+function drawMoveHint(ctx: CanvasRenderingContext2D, state: MatchState, y: number): void {
   // Strict requirements for the P1 machine, straight from the move list.
   const f = state.fighters[0];
   if (f.charId !== 'mk2') return;
@@ -269,7 +276,6 @@ function drawMoveHint(ctx: CanvasRenderingContext2D, state: MatchState): void {
   const opp = state.fighters[1];
   const list = moveListFor(f);
   const x = 40;
-  const y = 150;
   const w = 340;
   const rows = list.filter((m) => m.legal(state, f, opp)).slice(0, 6);
   const h = 22 + rows.length * 17;

@@ -176,26 +176,30 @@ function skeleton(p: Pose): { hip: Pt; chest: Pt; neck: Pt; head: Pt; shoulderF:
   };
 }
 
+/*
+ * All of the helpers below take WORLD space (y up). The context is flipped once
+ * by `scale(facing * zoom, -zoom)`, so nothing here may negate y itself.
+ */
 function limb(ctx: CanvasRenderingContext2D, a: Pt, b: Pt, width: number, color: string, edge: string): void {
   ctx.lineCap = 'round';
   ctx.strokeStyle = color;
   ctx.lineWidth = width + 2.5;
   ctx.beginPath();
-  ctx.moveTo(a.x, -a.y);
-  ctx.lineTo(b.x, -b.y);
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(b.x, b.y);
   ctx.stroke();
   ctx.strokeStyle = edge;
   ctx.lineWidth = Math.max(1, width - 2.5);
   ctx.beginPath();
-  ctx.moveTo(a.x, -a.y);
-  ctx.lineTo(b.x, -b.y);
+  ctx.moveTo(a.x, a.y);
+  ctx.lineTo(b.x, b.y);
   ctx.stroke();
 }
 
 function joint(ctx: CanvasRenderingContext2D, at: Pt, r: number, color: string): void {
   ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.arc(at.x, -at.y, r, 0, Math.PI * 2);
+  ctx.arc(at.x, at.y, r, 0, Math.PI * 2);
   ctx.fill();
 }
 
@@ -206,8 +210,8 @@ function seam(ctx: CanvasRenderingContext2D, a: Pt, b: Pt, width: number, color:
   ctx.lineWidth = width;
   ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(a.x + 1.5, -a.y);
-  ctx.lineTo(b.x + 1.5, -b.y);
+  ctx.moveTo(a.x + 1.5, a.y);
+  ctx.lineTo(b.x + 1.5, b.y);
   ctx.stroke();
   ctx.globalAlpha = 1;
 }
@@ -249,12 +253,12 @@ export function drawFighter(
     // PROXY OF THE CREATOR: a cage of escaping arcs around the chassis.
     const pulse = 0.6 + 0.4 * Math.sin(frame * 0.12);
     ctx.globalAlpha = 0.32 * pulse;
-    const grd = ctx.createRadialGradient(0, -70, 10, 0, -70, 120);
+    const grd = ctx.createRadialGradient(0, 70, 10, 0, 70, 120);
     grd.addColorStop(0, rgba(WHITE_GOLD, 0.5));
     grd.addColorStop(1, 'rgba(255,248,224,0)');
     ctx.fillStyle = grd;
     ctx.beginPath();
-    ctx.arc(0, -70, 120, 0, Math.PI * 2);
+    ctx.arc(0, 70, 120, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
     for (let i = 0; i < 5; i++) {
@@ -263,7 +267,7 @@ export function drawFighter(
       ctx.strokeStyle = rgba(WHITE_GOLD, 0.5 + 0.3 * Math.sin(frame * 0.3 + i));
       ctx.lineWidth = 1.6;
       ctx.beginPath();
-      ctx.arc(0, -70, r, a, a + 1.1);
+      ctx.arc(0, 70, r, a, a + 1.1);
       ctx.stroke();
     }
   }
@@ -279,10 +283,10 @@ export function drawFighter(
   // Foot plate
   ctx.fillStyle = TITANIUM_HI;
   ctx.beginPath();
-  ctx.moveTo(s.footB.x - 8, -s.footB.y);
-  ctx.lineTo(s.footB.x + 13, -s.footB.y);
-  ctx.lineTo(s.footB.x + 9, -s.footB.y - 5);
-  ctx.lineTo(s.footB.x - 9, -s.footB.y - 5);
+  ctx.moveTo(s.footB.x - 8, s.footB.y);
+  ctx.lineTo(s.footB.x + 13, s.footB.y);
+  ctx.lineTo(s.footB.x + 9, s.footB.y + 5);
+  ctx.lineTo(s.footB.x - 9, s.footB.y + 5);
   ctx.closePath();
   ctx.fill();
   seam(ctx, s.hipB, s.kneeB, 2, gold, 0.8);
@@ -293,10 +297,10 @@ export function drawFighter(
   joint(ctx, s.kneeF, 8, GUNMETAL);
   ctx.fillStyle = TITANIUM_HI;
   ctx.beginPath();
-  ctx.moveTo(s.footF.x - 9, -s.footF.y);
-  ctx.lineTo(s.footF.x + 15, -s.footF.y);
-  ctx.lineTo(s.footF.x + 11, -s.footF.y - 6);
-  ctx.lineTo(s.footF.x - 10, -s.footF.y - 6);
+  ctx.moveTo(s.footF.x - 9, s.footF.y);
+  ctx.lineTo(s.footF.x + 15, s.footF.y);
+  ctx.lineTo(s.footF.x + 11, s.footF.y + 6);
+  ctx.lineTo(s.footF.x - 10, s.footF.y + 6);
   ctx.closePath();
   ctx.fill();
   seam(ctx, s.hipF, s.kneeF, 2.4, gold);
@@ -311,19 +315,19 @@ export function drawFighter(
   // ---- torso: angular armour over a dark core ----
   ctx.fillStyle = lit;
   ctx.beginPath();
-  ctx.moveTo(s.chest.x + 11, -s.chest.y);
-  ctx.lineTo(s.chest.x - 12, -s.chest.y + 2);
-  ctx.lineTo(s.hip.x - 9, -s.hip.y);
-  ctx.lineTo(s.hip.x + 10, -s.hip.y);
+  ctx.moveTo(s.chest.x + 11, s.chest.y);
+  ctx.lineTo(s.chest.x - 12, s.chest.y - 2);
+  ctx.lineTo(s.hip.x - 9, s.hip.y);
+  ctx.lineTo(s.hip.x + 10, s.hip.y);
   ctx.closePath();
   ctx.fill();
   // Chest plate highlight
   ctx.fillStyle = rgba(CHASSIS_LIT, 0.9);
   ctx.beginPath();
-  ctx.moveTo(s.chest.x + 9, -s.chest.y + 3);
-  ctx.lineTo(s.chest.x - 9, -s.chest.y + 5);
-  ctx.lineTo(s.hip.x - 6, -s.hip.y - 4);
-  ctx.lineTo(s.hip.x + 7, -s.hip.y - 4);
+  ctx.moveTo(s.chest.x + 9, s.chest.y - 3);
+  ctx.lineTo(s.chest.x - 9, s.chest.y - 5);
+  ctx.lineTo(s.hip.x - 6, s.hip.y + 4);
+  ctx.lineTo(s.hip.x + 7, s.hip.y + 4);
   ctx.closePath();
   ctx.fill();
   // Core: the divine charge reservoir, visible through the plating.
@@ -331,10 +335,10 @@ export function drawFighter(
   ctx.globalAlpha = Math.min(1, coreGlow);
   ctx.fillStyle = gold;
   ctx.beginPath();
-  ctx.moveTo(s.chest.x, -s.chest.y + 8);
-  ctx.lineTo(s.chest.x + 4, -s.chest.y + 22);
-  ctx.lineTo(s.chest.x, -s.chest.y + 36);
-  ctx.lineTo(s.chest.x - 4, -s.chest.y + 22);
+  ctx.moveTo(s.chest.x, s.chest.y - 8);
+  ctx.lineTo(s.chest.x + 4, s.chest.y - 22);
+  ctx.lineTo(s.chest.x, s.chest.y - 36);
+  ctx.lineTo(s.chest.x - 4, s.chest.y - 22);
   ctx.closePath();
   ctx.fill();
   ctx.globalAlpha = 1;
@@ -342,10 +346,10 @@ export function drawFighter(
   ctx.fillStyle = TITANIUM;
   for (const [sh, dir] of [[s.shoulderF, 1], [{ x: s.chest.x - 10, y: s.chest.y + 1 }, -1]] as [Pt, number][]) {
     ctx.beginPath();
-    ctx.moveTo(sh.x + dir * 4, -sh.y - 6);
-    ctx.lineTo(sh.x + dir * 17, -sh.y - 1);
-    ctx.lineTo(sh.x + dir * 14, -sh.y + 10);
-    ctx.lineTo(sh.x + dir * 2, -sh.y + 9);
+    ctx.moveTo(sh.x + dir * 4, sh.y + 6);
+    ctx.lineTo(sh.x + dir * 17, sh.y + 1);
+    ctx.lineTo(sh.x + dir * 14, sh.y - 10);
+    ctx.lineTo(sh.x + dir * 2, sh.y - 9);
     ctx.closePath();
     ctx.fill();
     seam(ctx, sh, { x: sh.x + dir * 14, y: sh.y + 4 }, 1.8, gold, 0.9);
@@ -354,25 +358,25 @@ export function drawFighter(
   // ---- faceted head ----
   ctx.fillStyle = lit;
   ctx.beginPath();
-  ctx.moveTo(s.head.x + 10, -s.head.y + 2);
-  ctx.lineTo(s.head.x + 6, -s.head.y + 11);
-  ctx.lineTo(s.head.x - 6, -s.head.y + 11);
-  ctx.lineTo(s.head.x - 9, -s.head.y + 1);
-  ctx.lineTo(s.head.x - 4, -s.head.y - 7);
-  ctx.lineTo(s.head.x + 5, -s.head.y - 6);
+  ctx.moveTo(s.head.x + 10, s.head.y - 2);
+  ctx.lineTo(s.head.x + 6, s.head.y - 11);
+  ctx.lineTo(s.head.x - 6, s.head.y - 11);
+  ctx.lineTo(s.head.x - 9, s.head.y - 1);
+  ctx.lineTo(s.head.x - 4, s.head.y + 7);
+  ctx.lineTo(s.head.x + 5, s.head.y + 6);
   ctx.closePath();
   ctx.fill();
   ctx.fillStyle = GUNMETAL;
   ctx.beginPath();
-  ctx.moveTo(s.head.x + 10, -s.head.y + 2);
-  ctx.lineTo(s.head.x + 14, -s.head.y - 1);
-  ctx.lineTo(s.head.x + 9, -s.head.y - 7);
+  ctx.moveTo(s.head.x + 10, s.head.y - 2);
+  ctx.lineTo(s.head.x + 14, s.head.y + 1);
+  ctx.lineTo(s.head.x + 9, s.head.y + 7);
   ctx.closePath();
   ctx.fill();
   // Visor slit: the only warm light on the face.
   ctx.fillStyle = gold;
   ctx.globalAlpha = 0.85 + 0.15 * Math.sin(frame * 0.16);
-  ctx.fillRect(s.head.x - 5, -s.head.y - 1, 13, 2.6);
+  ctx.fillRect(s.head.x - 5, s.head.y + 1, 13, -2.6);
   ctx.globalAlpha = 1;
 
   // ---- weapon arm + HEAVEN SPLITTER ----
@@ -384,14 +388,14 @@ export function drawFighter(
     drawHeavenSplitter(ctx, s.handF, s.handB, gold, p, frame);
   } else {
     ctx.fillStyle = TITANIUM_HI;
-    ctx.fillRect(s.handF.x - 3, -s.handF.y - 3, 16, 6);
+    ctx.fillRect(s.handF.x - 3, s.handF.y + 3, 16, -6);
   }
 
   if (p.flash > 0) {
     ctx.globalAlpha = p.flash * 0.7;
     ctx.fillStyle = '#fff';
     ctx.beginPath();
-    ctx.arc(0, -70, 48, 0, Math.PI * 2);
+    ctx.arc(0, 70, 48, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
   }
@@ -412,16 +416,17 @@ function drawHeavenSplitter(
   p: Pose,
   frame: number,
 ): void {
-  // The shaft points along the thrust direction, always forward.
+  // The shaft points along the thrust direction, always forward. World space:
+  // the context is already flipped, so y is up here and everywhere below.
   const dir = p.thrustDir === 0 ? 1 : p.thrustDir;
-  const tipX = hand.x + dir * (108 + p.thrust * 46);
-  const tipY = -(hand.y + p.weaponLift * 30);
+  const tipX = hand.x + dir * (94 + p.thrust * 52);
+  const tipY = hand.y + p.weaponLift * 30;
   const gripX = hand.x - dir * 40;
-  const gripY = -hand.y + 4;
+  const gripY = hand.y - 4;
 
   // Small storm cloud around the head.
   const cx = tipX - dir * 16;
-  const cy = tipY + 6;
+  const cy = tipY - 6;
   ctx.save();
   ctx.globalAlpha = 0.85;
   ctx.fillStyle = p.heat > 0 ? '#0a0a0e' : '#0b0d13';
@@ -439,18 +444,18 @@ function drawHeavenSplitter(
   ctx.lineWidth = 5;
   ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(gripX, -gripY);
+  ctx.moveTo(gripX, gripY);
   ctx.lineTo(tipX, tipY);
   ctx.stroke();
   ctx.strokeStyle = p.heat > 0 ? WHITE_GOLD : GOLD;
   ctx.lineWidth = 1.6;
   ctx.beginPath();
-  ctx.moveTo(gripX, -gripY);
+  ctx.moveTo(gripX, gripY);
   ctx.lineTo(tipX, tipY);
   ctx.stroke();
   for (const t of [0.28, 0.62]) {
     const x = gripX + (tipX - gripX) * t;
-    const y = -gripY + (tipY + gripY) * t;
+    const y = gripY + (tipY - gripY) * t;
     ctx.strokeStyle = gold;
     ctx.lineWidth = 3.2;
     ctx.beginPath();
@@ -466,10 +471,10 @@ function drawHeavenSplitter(
     ctx.lineWidth = width;
     ctx.lineJoin = 'miter';
     ctx.beginPath();
-    ctx.moveTo(tipX - dir * 20, tipY + 6 + offset);
-    ctx.lineTo(tipX - dir * 6, tipY - 4 + offset);
-    ctx.lineTo(tipX - dir * 12, tipY - 4 + offset);
-    ctx.lineTo(tipX, tipY - 13 + offset);
+    ctx.moveTo(tipX - dir * 20, tipY - 6 - offset);
+    ctx.lineTo(tipX - dir * 6, tipY + 4 - offset);
+    ctx.lineTo(tipX - dir * 12, tipY + 4 - offset);
+    ctx.lineTo(tipX, tipY + 13 - offset);
     ctx.stroke();
     ctx.globalAlpha = 1;
   };
@@ -480,19 +485,19 @@ function drawHeavenSplitter(
   ctx.lineWidth = 1.6;
   for (const [t, len] of [[0.35, 9], [0.62, 7]] as [number, number][]) {
     const bx = tipX - dir * (20 - t * 20);
-    const by = tipY + 6 - t * 12;
+    const by = tipY - 6 + t * 12;
     ctx.beginPath();
     ctx.moveTo(bx, by);
-    ctx.lineTo(bx + dir * len * 0.6, by + len);
+    ctx.lineTo(bx + dir * len * 0.6, by - len);
     ctx.moveTo(bx, by);
-    ctx.lineTo(bx + dir * len * 0.3, by + len * 0.6);
+    ctx.lineTo(bx + dir * len * 0.3, by - len * 0.6);
     ctx.stroke();
   }
   // Back hand holds the butt of the shaft.
   ctx.strokeStyle = TITANIUM_HI;
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(backHand.x, -backHand.y);
-  ctx.lineTo(hand.x - dir * 6, -hand.y + 2);
+  ctx.moveTo(backHand.x, backHand.y);
+  ctx.lineTo(hand.x - dir * 6, hand.y - 2);
   ctx.stroke();
 }

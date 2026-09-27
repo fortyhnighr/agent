@@ -7,6 +7,10 @@
  * Attunement is there. Form 2 lists the transformed arts instead.
  */
 
+// The move list is built from the registry, so the roster has to be registered
+// before this module is evaluated. The browser entry point does this too, but
+// the HUD must never depend on import order.
+import '../characters';
 import { canUse } from '../characters/mk2/logic';
 import { moveOf } from '../sim/registry';
 import { CK, F1, F2 } from '../characters/mk2/constants';

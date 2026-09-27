@@ -130,6 +130,20 @@ button:active {
   box-shadow: 0 0 18px rgba(240, 194, 74, 0.5);
 }
 
+.label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: #565e70;
+  padding: 0 4px 0 6px;
+}
+
+.panel-row .label:not(:first-child) {
+  margin-left: 10px;
+  padding-left: 10px;
+  border-left: 1px solid rgba(240, 194, 74, 0.18);
+}
+
 button.sel {
   min-width: 0;
   padding: 7px 14px;

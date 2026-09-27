@@ -153,44 +153,51 @@ function bindCheckbox(id: string, initial: boolean, onChange: (v: boolean) => vo
   el.addEventListener('change', () => onChange(el.checked));
 }
 
-function bindSelect(id: string, onChange: (id: string) => void): void {
-  const el = document.getElementById(id) as HTMLButtonElement | null;
-  if (!el) return;
-  el.addEventListener('click', () => {
-    audio.resume();
-    const next = el.dataset.charId;
-    if (next) onChange(next);
-  });
+function bindSlot(slot: 'p1' | 'p2', onPick: (id: string) => void): void {
+  for (const id of ['mk1', 'mk2']) {
+    const el = document.getElementById(`${slot}-${id}`);
+    el?.addEventListener('click', () => {
+      audio.resume();
+      onPick(id);
+    });
+  }
+}
+
+function paintSelection(): void {
+  for (const slot of ['p1', 'p2'] as const) {
+    const current = slot === 'p1' ? p1Id : p2Id;
+    for (const id of ['mk1', 'mk2']) {
+      document.getElementById(`${slot}-${id}`)?.classList.toggle('active', id === current);
+    }
+  }
+  document.getElementById('btn-mirror')?.classList.toggle('active', p1Id === p2Id);
 }
 
 function restartMatch(): void {
   state = createMatch({ p1: p1Id, p2: p2Id, seed: 0xc0ffee, aiP2 });
   state.phase = 'fight';
+  state.aiControlled[0] = 0;
   fx.reset(state.seed);
-  for (const [id, el] of [
-    ['mk2', document.getElementById('btn-mk2')],
-    ['mk1', document.getElementById('btn-mk1')],
-  ] as [string, HTMLElement | null][]) {
-    el?.classList.toggle('active', id === p1Id);
-  }
-  for (const [id, el] of [
-    ['mk1', document.getElementById('btn-mk2')],
-    ['mk2', document.getElementById('btn-mk1')],
-  ] as [string, HTMLElement | null][]) {
-    el?.classList.toggle('active', id === p2Id);
-  }
+  paintSelection();
 }
 
-bindSelect('btn-mk2', (id) => {
+bindSlot('p1', (id) => {
   p1Id = id;
   restartMatch();
 });
-bindSelect('btn-mk1', (id) => {
+bindSlot('p2', (id) => {
   p2Id = id;
+  restartMatch();
+});
+document.getElementById('btn-mirror')?.addEventListener('click', () => {
+  audio.resume();
+  p2Id = p1Id;
   restartMatch();
 });
 bindCheckbox('opt-ai', true, (v) => {
   aiP2 = v;
+  // Take effect on the current match, no restart needed.
+  state.aiControlled[1] = v ? 1 : 0;
 });
 bindCheckbox('opt-hits', false, (v) => {
   showHitboxes = v;
@@ -320,7 +327,7 @@ function drawHitboxes(f: Fighter): void {
 let lastZoom = 1;
 
 function render(): void {
-  const cam = scene.camera(state.fighters, fx.shake, W, H);
+  const cam = scene.updateCamera(state.fighters, fx.shake, W, H);
   lastZoom = cam.zoom;
   const zoom = cam.zoom;
   const originX = W / 2 - cam.x * zoom;

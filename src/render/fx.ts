@@ -364,8 +364,13 @@ export class FxLayer {
         this.skyFlash = 1;
         break;
       case 'creatorSmite':
+        // A blowout frame, then a real column of judgement standing in the
+        // arena while the machine is erased out of it.
         this.flashBy(1);
         this.pillar = 54;
+        this.spawn('pillar', x, 0, { size: 120 * s, life: 60, heat: 1 });
+        this.arc(x, 520, x, 0, 30, 12, 1);
+        for (let i = 0; i < 26; i++) this.burst(x + (rand(this.seed, i + 120) - 0.5) * 200, 40 + rand(this.seed, i + 130) * 120, 1, 1, 1.4);
         this.shakeBy(40);
         this.skyFlash = 1;
         break;

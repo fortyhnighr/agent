@@ -36,6 +36,9 @@ function rnd(seed: number, i: number): number {
 export class Scene {
   /** 0 = dry arena, 1 = full thunderstorm. */
   storm = 0;
+  /** Smoothed camera, so a jump does not snap the whole screen. */
+  private cam: Camera = { x: 0, y: 0, zoom: 1, shakeX: 0, shakeY: 0 };
+  private firstCamera = true;
   private frame = 0;
   private seed = 0x1f2e3d4c;
 
@@ -176,21 +179,26 @@ export class Scene {
       ctx.fillRect(0, 0, w, h);
     }
 
+    // Judgement columns: a hot core with a wide falloff, narrow at the base
+    // and flaring at the top, so it reads as light falling out of the sky.
     for (const p of fx.particles) {
-      if (p.kind === 'pillar') {
-        const t = p.life / p.maxLife;
-        const [x] = [p.x];
-        ctx.save();
-        const g = ctx.createLinearGradient(x - p.size, 0, x + p.size, 0);
-        g.addColorStop(0, 'rgba(255,248,224,0)');
-        g.addColorStop(0.35, rgba(WHITE_GOLD, 0.5 * t));
-        g.addColorStop(0.5, `rgba(255,255,255,${0.85 * t})`);
-        g.addColorStop(0.65, rgba(WHITE_GOLD, 0.5 * t));
-        g.addColorStop(1, 'rgba(255,248,224,0)');
-        ctx.fillStyle = g;
-        ctx.fillRect(x - p.size, 0, p.size * 2, h);
-        ctx.restore();
-      }
+      if (p.kind !== 'pillar') continue;
+      const t = p.life / p.maxLife;
+      const rise = Math.sin(Math.min(1, (1 - t) * 2.2) * Math.PI * 0.5);
+      const top = h * (0.5 - rise * 0.5);
+      const width = p.size * (0.55 + rise * 0.75);
+      const g = ctx.createLinearGradient(p.x - width, 0, p.x + width, 0);
+      g.addColorStop(0, 'rgba(255,248,224,0)');
+      g.addColorStop(0.28, rgba(WHITE_GOLD, 0.32 * t * rise));
+      g.addColorStop(0.5, `rgba(255,255,255,${0.8 * t * rise})`);
+      g.addColorStop(0.72, rgba(WHITE_GOLD, 0.32 * t * rise));
+      g.addColorStop(1, 'rgba(255,248,224,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(p.x - width, top, width * 2, h - top);
+      ctx.fillStyle = rgba(WHITE_GOLD, 0.18 * t * rise);
+      ctx.beginPath();
+      ctx.ellipse(p.x, h - 30, width * 1.5, width * 0.45, 0, 0, Math.PI * 2);
+      ctx.fill();
     }
 
     if (fx.skyFlash > 0.02) {
@@ -202,10 +210,12 @@ export class Scene {
       ctx.fillRect(0, 0, w, h);
     }
     if (fx.pillar > 0) {
-      const t = Math.min(1, fx.pillar / 18);
+      // The blowout frame: blinding for a handful of frames, then gone. The
+      // HUD is drawn after this and stays readable throughout.
+      const t = Math.pow(fx.pillar / 54, 2.2);
       const g = ctx.createLinearGradient(0, 0, 0, h);
-      g.addColorStop(0, `rgba(255,255,255,${t})`);
-      g.addColorStop(0.5, rgba(WHITE_GOLD, 0.9 * t));
+      g.addColorStop(0, `rgba(255,255,255,${0.95 * t})`);
+      g.addColorStop(0.5, rgba(WHITE_GOLD, 0.75 * t));
       g.addColorStop(1, 'rgba(255,248,224,0)');
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, w, h);
@@ -218,8 +228,28 @@ export class Scene {
     ctx.fillRect(0, 0, w, h);
   }
 
-  /** Camera keeps both fighters framed and shakes on impact. */
-  camera(fxs: { x: number; y: number }[], shake: number, w: number, viewH: number): Camera {
+  /**
+   * Camera keeps both fighters framed, smoothed over a few frames so vertical
+   * movement reads as a camera move rather than a jump cut, and shakes on
+   * impact. Call once per rendered frame.
+   */
+  updateCamera(fxs: { x: number; y: number }[], shake: number, w: number, viewH: number): Camera {
+    const target = this.target(fxs, shake, w, viewH);
+    if (this.firstCamera) {
+      this.cam = target;
+      this.firstCamera = false;
+    } else {
+      const k = 0.2;
+      this.cam.x += (target.x - this.cam.x) * k;
+      this.cam.y += (target.y - this.cam.y) * k;
+      this.cam.zoom += (target.zoom - this.cam.zoom) * k;
+    }
+    this.cam.shakeX = target.shakeX;
+    this.cam.shakeY = target.shakeY;
+    return this.cam;
+  }
+
+  private target(fxs: { x: number; y: number }[], shake: number, w: number, viewH: number): Camera {
     let min = Infinity;
     let max = -Infinity;
     let maxY = 0;
@@ -233,12 +263,18 @@ export class Scene {
       max = 200;
     }
     const centre = (min + max) / 2;
-    const span = Math.max(420, max - min + 260);
-    const zoom = Math.min(1.25, Math.max(0.62, Math.min((w * 0.74) / span, (viewH * 0.7) / 420)));
+    // Frame horizontally: both fighters, with room to walk.
+    const zoomX = (w * 0.60) / Math.max(300, max - min + 210);
+    // Frame vertically: the ground and the highest airborne body, with the
+    // fighters sitting a little below centre so there is headroom to jump.
+    const ground = viewH - 96;
+    const zoomY = (ground - 96) / (maxY + 210);
+    const zoom = Math.min(2.1, Math.max(0.62, Math.min(zoomX, zoomY)));
+    const camY = Math.max(0, maxY * 0.45 - 24);
     const sh = shake;
     return {
       x: centre - (rnd(this.seed, this.frame) - 0.5) * sh,
-      y: maxY * 0.4 + (rnd(this.seed, this.frame + 1) - 0.5) * sh * 0.7,
+      y: camY + (rnd(this.seed, this.frame + 1) - 0.5) * sh * 0.7,
       zoom,
       shakeX: (rnd(this.seed, this.frame + 2) - 0.5) * sh,
       shakeY: (rnd(this.seed, this.frame + 3) - 0.5) * sh * 0.6,

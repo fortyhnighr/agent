@@ -35,7 +35,7 @@ function style(f: ReturnType<typeof p>) {
 
 function renderAll(state: MatchState, fx: FxLayer, scene: Scene, frame: number): StubContext {
   const ctx = makeCtx();
-  const cam = scene.camera(state.fighters, fx.shake, W, H);
+  const cam = scene.updateCamera(state.fighters, fx.shake, W, H);
   const toScreen = view(cam.zoom, cam.x, cam.y);
   scene.drawBack(ctx, W, H, fx);
   fx.draw(ctx, toScreen, GROUND);
