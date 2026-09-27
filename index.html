@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CYBORG MK. 2 — Heaven Splitter</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="stage" width="1280" height="720"></canvas>
+
+      <div id="panel">
+        <div class="panel-row">
+          <button id="btn-mk2" class="sel active">P1: CYBORG MK. 2</button>
+          <button id="btn-mk1" class="sel">P2: CYBORG MK. 1</button>
+        </div>
+        <div class="panel-row">
+          <label class="chk"><input type="checkbox" id="opt-ai" /> AI controls P2</label>
+          <label class="chk"><input type="checkbox" id="opt-hits" /> Show hitboxes</label>
+          <label class="chk"><input type="checkbox" id="opt-sfx" checked /> Audio</label>
+          <label class="chk"><input type="checkbox" id="opt-debug" /> Debug state</label>
+        </div>
+        <div class="panel-row buttons">
+          <button data-btn="J">J</button><button data-btn="K">K</button><button data-btn="L">L</button>
+          <button data-btn="I">I</button><button data-btn="U">U</button><button data-btn="O">O</button>
+          <button data-btn="P">P</button><button data-btn="R">R</button>
+          <button data-btn="G" class="guard">GUARD</button>
+        </div>
+        <div class="panel-row hint">
+          Arrows / WASD move · <b>U</b> jump · <b>↓+O</b> = Heaven's Array ·
+          <b>hold L</b> = Railspear levels · <b>R</b> = Heaven Splitter
+        </div>
+        <pre id="debug" hidden></pre>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
