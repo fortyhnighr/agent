@@ -98,11 +98,9 @@ export class RollbackSession {
    * re-simulates everything up to the current frame with the corrected inputs.
    */
   correctInput(frame: number, player: 0 | 1, input: number): void {
-    if (frame >= this.simulated) {
-      this.pending[player].set(frame, input & 0x1fff);
-      return;
-    }
-    this.pending[player].set(frame, input & 0x1fff);
+    const value = input & 0x1fff;
+    this.pending[player].set(frame, value);
+    if (frame >= this.simulated) return;
     this.resimulateFrom(frame);
   }
 
@@ -114,15 +112,26 @@ export class RollbackSession {
     for (let f = frame; f < target; f++) {
       const inputs = this.inputs.get(f);
       if (!inputs) break;
+      // Replay the *current* inputs for this frame, not the stale ones: a
+      // corrected frame is the whole point of rolling back.
+      const a = this.pending[0].get(f);
+      const b = this.pending[1].get(f);
+      const replay: Inputs = [a ?? inputs[0], b ?? inputs[1]];
+      this.inputs.set(f, replay);
       this.snaps.set(f, deepClone(this.state));
-      step(this.state, inputs);
+      step(this.state, replay);
       this.simulated = f + 1;
       if (this.hashEvery > 0 && f % this.hashEvery === 0) {
-        const expected = this.hashes.get(f);
         const actual = hashState(this.state);
-        if (expected && expected !== actual) {
-          this.desync = true;
-          this.desyncFrame = f;
+        // Only frames *before* the correction still have a meaningful
+        // reference hash. Everything after it is expected to differ: that is
+        // what a correction is for.
+        if (f < frame) {
+          const expected = this.hashes.get(f);
+          if (expected && expected !== actual) {
+            this.desync = true;
+            this.desyncFrame = f;
+          }
         }
         this.hashes.set(f, actual);
       }
@@ -139,5 +148,8 @@ export class RollbackSession {
     for (const key of [...this.snaps.keys()]) if (key < cutoff) this.snaps.delete(key);
     for (const key of [...this.hashes.keys()]) if (key < cutoff) this.hashes.delete(key);
     for (const key of [...this.inputs.keys()]) if (key < cutoff) this.inputs.delete(key);
+    for (const map of this.pending) {
+      for (const key of [...map.keys()]) if (key < cutoff) map.delete(key);
+    }
   }
 }
